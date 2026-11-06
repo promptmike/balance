@@ -296,6 +296,27 @@ class StackTests(unittest.TestCase):
         self.assertEqual(self.page.locator('#tray .marble').count(), 7)
         self.assertEqual(self.page.locator('#tray .stack-visual').count(), 0)
 
+    def test_balloons_arrows_and_conversion(self):
+        self.add(2, 'left-bottom')
+        self.add(3, 'left-bottom')
+        stacks = self.page.locator('#left-bottom .stack')
+        self.assertEqual(self.page.locator('#left-bottom .balloon').count(), 2)
+        self.assertEqual(stacks.last.locator('.ghost-balloon').count(), 1)
+        self.assertEqual(stacks.last.locator('.ghost-row').count(), 1)
+        self.assertEqual(stacks.last.locator('.force-arrow').get_attribute('data-direction'), 'up')
+        self.result('Left 0/6 = 0 Right')
+        self.page.locator('#left-bottom .stack').last.drag_to(
+            self.page.locator('#left h2'), source_position={'x': 40, 'y': 16})
+        self.assertEqual(self.page.locator('#left .balloon').count(), 0)
+        self.assertEqual(self.page.locator('#left .force-arrow').get_attribute('data-direction'), 'down')
+        self.result('Left 3/2 > 0 Right')
+        self.page.locator('#left-bottom .stack').drag_to(
+            self.page.locator('#tray h2'), source_position={'x': 40, 'y': 16})
+        self.assertEqual(self.page.locator('#tray .balloon').count(), 0)
+        self.assertEqual(self.page.locator('#tray .force-arrow').count(), 0)
+        self.result('Left 3 > 0 Right')
+        self.assertEqual(self.page.locator('.marble').count(), 8)
+
     def test_extreme_layouts(self):
         for width in (320, 375, 768, 1280, 1920):
             for quadrant in ('left', 'left-bottom'):

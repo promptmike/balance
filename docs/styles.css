@@ -198,3 +198,39 @@ main > p {
 }
 .stack.drop-before::before { left: -6px; }
 .stack.drop-after::after { right: -6px; }
+
+/* Denominator objects become buoyant balloons; their numeric values stay unchanged. */
+.marble.balloon {
+  border-radius: 50% 50% 50% 50% / 35% 35% 65% 65%;
+}
+.marble.balloon::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: calc(50% - 4px);
+  width: 8px;
+  height: 5px;
+  background: var(--colour);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.stack { padding-bottom: 70px; }
+.stack-caption { bottom: 36px; }
+.force-arrow {
+  position: absolute;
+  bottom: 8px;
+  left: calc(12px + var(--row-width) / 2 - 12px);
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+.force-arrow path {
+  fill: none;
+  stroke: #43535a;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.balloon-stack { padding-top: calc(48px + var(--rise)); padding-bottom: 42px; }
+.balloon-stack .stack-visual { top: 48px; }
+.balloon-stack .stack-caption { bottom: 8px; }
+.balloon-stack .force-arrow { top: 8px; bottom: auto; }

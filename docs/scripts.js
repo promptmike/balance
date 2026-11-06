@@ -43,6 +43,11 @@ function formatWeight(top, bottom) {
 }
 
 function updateScale() {
+  for (const marble of document.querySelectorAll('.plate .marble, #tray .marble')) {
+    const balloon = Boolean(marble.closest('.denominator'));
+    marble.classList.toggle('balloon', balloon);
+    marble.title = marble.title.replace(/\b(marble|balloon)\b/, balloon ? 'balloon' : 'marble');
+  }
   for (const plate of [left, right, leftBottom, rightBottom]) {
     const factors = [];
     for (const stack of plate.querySelectorAll('.stack')) {

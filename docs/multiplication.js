@@ -24,6 +24,8 @@ const MultiplicationView = (() => {
   }
 
   function render(stack, factors) {
+    const balloon = Boolean(stack.closest('.denominator'));
+    stack.classList.toggle('balloon-stack', balloon);
     const marbles = [...stack.querySelectorAll('.marble')];
     const rows = factors.length >= 2 ? factors[0] : 1;
     const layers = factors.length === 3 ? factors[1] : 1;
@@ -32,6 +34,8 @@ const MultiplicationView = (() => {
     const { rowStep, depthStep, depth, rise, rowWidth, width, height } = shape;
     stack.querySelector('.stack-visual')?.remove();
     stack.querySelector('.stack-caption')?.remove();
+    stack.querySelector('.force-arrow')?.remove();
+    stack.style.setProperty('--row-width', `${rowWidth}px`);
     stack.style.setProperty('--rise', `${rise}px`);
     stack.style.setProperty('--depth', `${depth}px`);
     stack.dataset.rows = rows;
@@ -62,9 +66,15 @@ const MultiplicationView = (() => {
         svgElement('stop', { offset: '.35', 'stop-color': marble.style.getPropertyValue('--colour') }),
         svgElement('stop', { offset: '1', 'stop-color': '#172b3b' }));
       defs.append(gradient);
-      row.append(svgElement('circle', { cx: diameter / 2 + index * marbleStep,
-        cy: diameter / 2, r: diameter / 2 - 1, fill: `url(#${gradientId})`,
-        stroke: '#ffffff', 'stroke-width': 0.8 }));
+      const sphere = balloon ? svgElement('path', {
+        d: 'M22 1 C-5 1 -5 30 22 41 C49 30 49 1 22 1 Z M20 41 L18 44 L26 44 L24 41 Z',
+        transform: `translate(${index * marbleStep} 0)`, class: 'ghost-balloon',
+      }) : svgElement('circle', { cx: diameter / 2 + index * marbleStep,
+        cy: diameter / 2, r: diameter / 2 - 1 });
+      sphere.setAttribute('fill', `url(#${gradientId})`);
+      sphere.setAttribute('stroke', '#ffffff');
+      sphere.setAttribute('stroke-width', '0.8');
+      row.append(sphere);
     });
     defs.append(row);
     svg.append(defs);
@@ -85,6 +95,11 @@ const MultiplicationView = (() => {
     caption.textContent = factors.length === 1 ? `Sum ${total}` : `${factors.join(' × ')} = ${total}`;
     caption.title = `${rows} rows · ${layers} layers. Translucent copies show multiplication; only solid marbles have weight.`;
     stack.append(caption);
+    const arrow = svgElement('svg', { class: 'force-arrow', viewBox: '0 0 24 24',
+      'data-direction': balloon ? 'up' : 'down', 'aria-hidden': 'true' });
+    arrow.append(svgElement('path', { d: balloon ? 'M12 22 V3 M5 10 L12 3 L19 10' :
+      'M12 2 V21 M5 14 L12 21 L19 14' }));
+    stack.append(arrow);
   }
 
   return { layout, render };
