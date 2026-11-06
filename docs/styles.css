@@ -50,6 +50,11 @@ h1 {
   padding: 0.5rem;
 }
 
+.plate {
+  display: flex;
+  flex-direction: column;
+}
+
 .numerator {
   border-bottom: 0.45rem solid #43535a;
   border-radius: 0.5rem 0.5rem 0 0;
@@ -72,30 +77,50 @@ h2 {
   min-height: 5.7rem;
 }
 
-/* Each horizontal group is one sum; separate sums wrap as whole groups. */
+/* Compact, centered terms leave a marble-sized drop area while slots remain. */
 .plate .marbles {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  align-content: flex-end;
+  flex: 1 1 auto;
+  align-items: center;
+  align-content: center;
+  justify-content: safe center;
   gap: 0.75rem;
-  padding: 0.5rem 0.25rem 2.75rem;
+  padding: 56px 6px;
   overflow-x: auto;
 }
 
 .stack {
   display: flex;
   flex-direction: row;
-  flex: 0 0 auto;
+  flex: 0 1 var(--term-width, var(--natural-width));
+  min-width: var(--natural-width);
+  justify-content: center;
+  align-items: center;
   position: relative;
   isolation: isolate;
-  padding: calc(16px + var(--rise, 0px)) calc(12px + var(--depth, 0px)) 42px 12px;
+  --visual-top: 40px;
+  --bottom-space: 88px;
+  --content-top: calc((100% - var(--visual-top) - var(--rise) - 44px - var(--bottom-space)) / 2);
+  --content-left: calc((100% - var(--row-width) - var(--depth)) / 2);
+  padding: calc(var(--visual-top) + var(--rise, 0px)) calc(12px + var(--depth, 0px)) var(--bottom-space) 12px;
   cursor: grab;
   touch-action: none;
   user-select: none;
   border-radius: 1.5rem;
   background: #edf1f3;
   border: 1px solid #d0dade;
+}
+
+/* At capacity, expand padding to make the occupied space visually explicit. */
+.plate.at-capacity .marbles {
+  align-items: stretch;
+  align-content: stretch;
+  padding: 6px;
+}
+
+.plate.at-capacity .stack {
+  flex-grow: 1;
 }
 
 .stack .marble {
@@ -157,8 +182,8 @@ main > p {
 
 .stack-visual {
   position: absolute;
-  top: 16px;
-  left: 12px;
+  top: calc(var(--content-top) + var(--visual-top));
+  left: var(--content-left);
   z-index: 0;
   pointer-events: none;
 }
@@ -167,20 +192,79 @@ main > p {
 .volume-floor { fill: #b9ccd633; stroke: #8fa8b5; stroke-width: 1; }
 .volume-edge { fill: none; stroke: #8fa8b5; stroke-width: 1; }
 
-.stack-caption {
+.term-product {
   position: absolute;
-  bottom: 8px;
+  top: calc(var(--content-top) + 8px);
   left: 12px;
   right: 12px;
+  text-align: center;
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
 }
 
-#move-message {
-  min-height: 1.5em;
-  margin: 0;
+
+
+/* Insertion cues do not change the layout while a pointer is captured. */
+.stack.drop-before::before, .stack.drop-after::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #1658a1;
+  border-radius: 2px;
+  pointer-events: none;
+}
+.stack.drop-before::before { left: -6px; }
+.stack.drop-after::after { right: -6px; }
+
+/* Denominator objects become buoyant balloons; their numeric values stay unchanged. */
+.marble.balloon {
+  border-radius: 50% 50% 50% 50% / 35% 35% 65% 65%;
+}
+.marble.balloon::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: calc(50% - 4px);
+  width: 8px;
+  height: 5px;
+  background: var(--colour);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.force-arrow {
+  position: absolute;
+  top: calc(var(--content-top) + var(--visual-top) + var(--rise) + 96px);
+  left: calc(var(--content-left) + var(--row-width) / 2 - 12px);
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+.force-arrow path {
+  fill: none;
+  stroke: #43535a;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.balloon-stack { --visual-top: 72px; --bottom-space: 60px; }
+.balloon-stack .force-arrow { top: calc(var(--content-top) + 38px); }
+.sum-brace {
+  position: absolute;
+  top: calc(var(--content-top) + var(--visual-top) + var(--rise) + 50px);
+  left: var(--content-left);
+  pointer-events: none;
+}
+.sum-brace path { fill: none; stroke: #43535a; stroke-width: 1.5; }
+.term-sum {
+  position: absolute;
+  top: calc(var(--content-top) + var(--visual-top) + var(--rise) + 70px);
+  left: var(--content-left);
+  width: var(--row-width);
+  font-size: 0.8rem;
   text-align: center;
-  color: #8a2633;
+  white-space: nowrap;
+  pointer-events: none;
 }
