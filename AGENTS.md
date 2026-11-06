@@ -38,6 +38,7 @@ GitHub Pages
 - If there is no existing branch for your task, create a new feature branch named `<task-name>` and commit to it.
 - Commit only to the appropriate feature branch.
 - Never modify the default branch directly.
+- Never modify `README.md`, `AGENTS.md` or `LICENSE` files.
 - Write a message for each commit.
 - Clearly sign your commit messages as an AI so that human and agentic commits can be distinguished.
 - Open a draft pull request targeting `main`.
