@@ -87,21 +87,27 @@ h2 {
   display: flex;
   flex-direction: row;
   flex: 0 0 auto;
-  padding: 1rem 0.75rem;
+  position: relative;
+  isolation: isolate;
+  padding: calc(16px + var(--rise, 0px)) calc(12px + var(--depth, 0px)) 42px 12px;
   cursor: grab;
   touch-action: none;
   user-select: none;
   border-radius: 1.5rem;
-  background: #e5eaeb;
+  background: #edf1f3;
+  border: 1px solid #d0dade;
 }
 
 .stack .marble {
-  flex: 0 0 2.75rem;
-  width: 2.75rem;
+  position: relative;
+  z-index: 2;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
 }
 
 .stack .marble + .marble {
-  margin-left: -0.5rem;
+  margin-left: -8px;
 }
 
 .marble {
@@ -109,7 +115,9 @@ h2 {
   place-items: center;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle at 32% 25%, #ffffff55, transparent 45%), var(--colour);
+  background: radial-gradient(circle at 30% 23%, #ffffffcc, transparent 35%),
+    radial-gradient(circle at 35% 30%, var(--colour) 35%, #172b3b 100%);
+  box-shadow: inset -2px -3px 5px #0004, 1px 3px 3px #142a3a30;
   color: white;
   font-weight: bold;
   cursor: grab;
@@ -145,4 +153,34 @@ main > p {
 .plate .marbles:focus-visible {
   outline: 2px solid #1658a1;
   outline-offset: -2px;
+}
+
+.stack-visual {
+  position: absolute;
+  top: 16px;
+  left: 12px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.ghost-volume { opacity: 0.48; }
+.volume-floor { fill: #b9ccd633; stroke: #8fa8b5; stroke-width: 1; }
+.volume-edge { fill: none; stroke: #8fa8b5; stroke-width: 1; }
+
+.stack-caption {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  right: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+#move-message {
+  min-height: 1.5em;
+  margin: 0;
+  text-align: center;
+  color: #8a2633;
 }

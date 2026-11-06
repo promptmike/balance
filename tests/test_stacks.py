@@ -123,16 +123,18 @@ class StackTests(unittest.TestCase):
         for width in (320, 375, 768, 1280, 1920):
             with self.subTest(width=width):
                 self.page.set_viewport_size({'width': width, 'height': 1000})
+                # Viewport resize events are delivered at the next rendering frame.
+                self.page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
                 geometry = self.page.evaluate("""() => {
                   const beam = document.querySelector('.beam');
                   const stacks = [...document.querySelectorAll('#left .stack')];
-                  const marbles = [...stacks[0].children];
+                  const marbles = [...stacks[0].querySelectorAll('.marble')];
                   const area = document.querySelector('#left .marbles');
                   return {
                     beamWidth: beam.offsetWidth,
                     sameRow: marbles.every(m => m.offsetTop === marbles[0].offsetTop),
                     ordered: marbles.every((m, i) => !i || m.offsetLeft > marbles[i-1].offsetLeft),
-                    factorsHorizontal: stacks[0].offsetTop === stacks[1].offsetTop,
+                    factorsHorizontal: stacks[0].offsetTop + stacks[0].offsetHeight === stacks[1].offsetTop + stacks[1].offsetHeight,
                     scrollable: area.scrollWidth > area.clientWidth,
                     pageWidth: document.documentElement.scrollWidth,
                     tilt: Math.abs(parseFloat(beam.style.getPropertyValue('--tilt'))),
@@ -153,6 +155,120 @@ class StackTests(unittest.TestCase):
                     math.radians(geometry['tilt'])), geometry['padding'])
                 self.result('Left 10 > 0 Right')
 
+    def test_weighted_ghosts_rebuild_without_affecting_weight(self):
+        self.add(2, 'left')
+        self.add(1, 'left', stack=True)
+        self.add(4, 'left')
+        self.add(2, 'left')
+        self.result('Left 24 > 0 Right')
+        terms = self.page.locator('#left .stack')
+        self.assertEqual(terms.nth(0).locator('.ghost-row').count(), 0)
+        self.assertEqual(terms.nth(1).locator('.ghost-row').count(), 2)
+        self.assertEqual(terms.nth(2).locator('.ghost-row').count(), 11)
+        self.assertEqual(terms.nth(2).get_attribute('data-rows'), '3')
+        self.assertEqual(terms.nth(2).get_attribute('data-layers'), '4')
+        self.assertEqual(terms.nth(2).get_attribute('data-visual-total'), '24')
+        self.assertEqual(self.page.locator('.marble').count(), 8)
+        self.move('#left .marble[data-weight="1"]', '#tray h2')
+        self.result('Left 16 > 0 Right')
+        self.assertEqual(terms.nth(2).locator('.ghost-row').count(), 7)
+        # Removing the whole first factor shifts both the index and the multipliers.
+        self.move('#left .stack:first-child .marble', '#tray h2')
+        self.result('Left 8 > 0 Right')
+        self.assertEqual(terms.nth(0).locator('.ghost-row').count(), 0)
+        self.assertEqual(terms.nth(1).locator('.ghost-row').count(), 3)
+        self.assertEqual(terms.nth(1).get_attribute('data-layers'), '1')
+        self.assertEqual(self.page.locator('.marble').count(), 8)
+
+    def test_three_term_limit_is_atomic(self):
+        for quadrant in ('left', 'right', 'left-bottom', 'right-bottom'):
+            with self.subTest(quadrant=quadrant):
+                self.page.reload()
+                for weight in (1, 2, 3):
+                    self.add(weight, quadrant)
+                before = self.page.locator('#result').text_content()
+                self.add(4, quadrant)
+                self.assertEqual(self.page.locator('#result').text_content(), before)
+                self.assertEqual(self.page.locator(f'#{quadrant} .stack').count(), 3)
+                self.assertEqual(self.page.locator('#tray .marble').count(), 5)
+                self.assertIn('3 terms', self.page.locator('#move-message').text_content())
+                other = 'right' if quadrant != 'right' else 'left'
+                self.add(4, other)
+                self.page.locator(f'#{other} .stack').drag_to(
+                    self.page.locator(f'#{quadrant} h2'), source_position={'x': 40, 'y': 16})
+                self.assertEqual(self.page.locator(f'#{other} .stack').count(), 1)
+                # Adding to an existing sum is legal at capacity.
+                self.add(1, quadrant, stack=True)
+                self.assertEqual(self.page.locator(f'#{quadrant} .marble').count(), 4)
+                # Splitting that sum would create a fourth factor and must do nothing.
+                self.move(f'#{quadrant} .stack:last-child .marble[data-weight="1"]', f'#{quadrant} h2')
+                self.assertEqual(self.page.locator(f'#{quadrant} .stack').count(), 3)
+                self.assertEqual(self.page.locator(f'#{quadrant} .stack:last-child .marble').count(), 2)
+                # Repositioning a singleton replaces a factor instead of adding one.
+                self.move(f'#{quadrant} .stack:first-child .marble', f'#{quadrant} h2')
+                self.assertEqual(self.page.locator(f'#{quadrant} .stack').count(), 3)
+                self.assertEqual(self.page.locator(f'#{quadrant} .marble').count(), 4)
+                self.assertEqual(self.page.locator('.marble').count(), 8)
+
+    def test_touch_drag_and_cancel(self):
+        # Exercise trusted touch input and pointer capture, not synthetic DOM events.
+        self.page.set_viewport_size({'width': 1280, 'height': 1400})
+        session = self.page.context.new_cdp_session(self.page)
+        session.send('Emulation.setTouchEmulationEnabled', {'enabled': True})
+
+        def touch_move(source, target, cancel=False):
+            start = self.page.locator(source).first.bounding_box()
+            end = self.page.locator(target).bounding_box()
+            x, y = start['x'] + start['width']/2, start['y'] + start['height']/2
+            end_x, end_y = end['x'] + end['width']/2, end['y'] + end['height']/2
+            session.send('Input.dispatchTouchEvent', {'type': 'touchStart',
+                'touchPoints': [{'x': x, 'y': y}]})
+            for step in range(1, 6):
+                session.send('Input.dispatchTouchEvent', {'type': 'touchMove',
+                    'touchPoints': [{'x': x + (end_x-x)*step/5, 'y': y + (end_y-y)*step/5}]})
+            session.send('Input.dispatchTouchEvent', {
+                'type': 'touchCancel' if cancel else 'touchEnd', 'touchPoints': []})
+
+        touch_move('#tray .marble[data-weight="2"]', '#left h2')
+        touch_move('#tray .marble[data-weight="3"]', '#left .marble')
+        self.result('Left 5 > 0 Right')
+        touch_move('#left .marble[data-weight="2"]', '#right h2', cancel=True)
+        self.result('Left 5 > 0 Right')
+        self.assertEqual(self.page.locator('.preview, .dragging').count(), 0)
+        touch_move('#left .marble[data-weight="2"]', '#right h2')
+        self.result('Left 3 > 2 Right')
+        session.detach()
+
+    def test_rendering_stress_and_adaptive_overlap(self):
+        self.add(4, 'left')
+        data = self.page.evaluate("""() => {
+          const stack = document.querySelector('#left .stack');
+          const samples = [];
+          for (const factors of [[1, 1, 4], [3, 4, 4], [24, 24, 4], [1, 576, 4]]) {
+            MultiplicationView.render(stack, factors);
+            const rows = factors[0], layers = factors[1];
+            const shape = MultiplicationView.layout(1, rows, layers);
+            samples.push({ copies: stack.querySelectorAll('.ghost-row').length,
+              total: Number(stack.dataset.visualTotal), rows, layers,
+              rowStep: shape.rowStep, depthStep: shape.depthStep,
+              width: stack.offsetWidth, height: stack.offsetHeight });
+          }
+          return samples;
+        }""")
+        for sample in data:
+            self.assertEqual(sample['copies'], sample['rows'] * sample['layers'] - 1)
+            self.assertEqual(sample['total'], sample['rows'] * sample['layers'] * 4)
+            self.assertLess(sample['width'], 1400)
+            self.assertLess(sample['height'], 1000)
+            self.assertGreaterEqual(sample['rowStep'], 2)
+            self.assertGreaterEqual(sample['depthStep'], 2)
+        self.assertEqual(data[1]['rowStep'], 42)
+        self.assertEqual(data[1]['depthStep'], 28)
+        self.assertLess(data[2]['rowStep'], data[1]['rowStep'])
+        self.assertLess(data[3]['depthStep'], data[1]['depthStep'])
+        self.assertEqual(self.page.locator('.marble').count(), 8)
+        self.result('Left 4 > 0 Right')
+
     def test_extreme_layouts(self):
         for width in (320, 375, 768, 1280, 1920):
             for quadrant in ('left', 'left-bottom'):
@@ -160,11 +276,11 @@ class StackTests(unittest.TestCase):
                     with self.subTest(width=width, quadrant=quadrant, combined=combined):
                         self.page.set_viewport_size({'width': width, 'height': 1000})
                         self.page.reload()
-                        for index, weight in enumerate((1, 1, 2, 2, 3, 3, 4, 4)):
-                            self.add(weight, quadrant, stack=combined and index > 0)
+                        for index, weight in enumerate((1, 2, 4, 3, 4, 1, 2, 3)):
+                            self.add(weight, quadrant, stack=index > 0 if combined else index not in (0, 3, 5))
                         self.assertEqual(self.page.locator(f'#{quadrant} .marble').count(), 8)
-                        self.assertEqual(self.page.locator(f'#{quadrant} .stack').count(), 1 if combined else 8)
-                        value = 20 if combined else 576
+                        self.assertEqual(self.page.locator(f'#{quadrant} .stack').count(), 1 if combined else 3)
+                        value = 20 if combined else 294
                         self.result(f'Left {value} > 0 Right' if quadrant == 'left'
                                     else f'Left 0/{value} = 0 Right')
                         errors = self.page.evaluate('''() => {
