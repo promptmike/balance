@@ -49,10 +49,14 @@ function updateScale() {
   }
   for (const plate of [left, right, leftBottom, rightBottom]) {
     const factors = [];
+    let termWidth = 0;
     for (const stack of plate.querySelectorAll('.stack')) {
       factors.push(stackWeight(stack));
       MultiplicationView.render(stack, factors);
+      termWidth = Math.max(termWidth, parseFloat(stack.style.getPropertyValue('--natural-width')));
     }
+    // Equal minimum widths wrap together; flex growth fills each row to its edges.
+    plate.querySelector('.marbles').style.setProperty('--term-width', `${termWidth}px`);
   }
   const leftTop = quadrantWeight(left);
   const rightTop = quadrantWeight(right);
@@ -109,6 +113,16 @@ function canCreateTerm(plate) {
   return plate.querySelectorAll('.stack').length < maxTerms;
 }
 
+// A whole stack or its only marble moves an existing factor rather than adding one.
+function movingTerm(object) {
+  const source = object.closest('.stack');
+  return object === source || source?.querySelectorAll('.marble').length === 1 ? source : null;
+}
+
+function canInsertTerm(plate, object) {
+  return canCreateTerm(plate) || movingTerm(object)?.closest('.plate') === plate;
+}
+
 // Compare positions in the beam's unrotated coordinate system, including wrapped rows.
 function beamPoint(x, y) {
   const bounds = beam.getBoundingClientRect();
@@ -156,8 +170,8 @@ function showDropMarker(event) {
   const wholeStack = drag.marble.classList.contains('stack');
   if (wholeStack && target.closest('.stack') === drag.marble) return;
   if (!wholeStack && target.closest('.stack')) return; // Add to this sum.
-  const source = drag.marble.closest('.stack');
-  const excluded = wholeStack || source?.querySelectorAll('.marble').length === 1 ? source : null;
+  if (!canInsertTerm(destination, drag.marble)) return;
+  const excluded = movingTerm(drag.marble);
   const insertion = insertionPoint(destination, target, event, excluded);
   insertion?.stack.classList.add(insertion.after ? 'drop-after' : 'drop-before');
 }
@@ -188,7 +202,7 @@ function finishDrag(event) {
       tray.querySelector('.marbles').append(...marble.querySelectorAll('.marble'));
       marble.remove();
     } else {
-      if (destination !== marble.closest('.plate') && !canCreateTerm(destination)) return;
+      if (!canInsertTerm(destination, marble)) return;
       const insertion = insertionPoint(destination, target, event, marble);
       insertTerm(destination.querySelector('.marbles'), marble, insertion);
     }
@@ -203,13 +217,10 @@ function finishDrag(event) {
     let stack = target.closest('.stack');
     if (stack && stack === sourceStack) return;
     if (!stack) {
-      // Moving a singleton inside its own quadrant replaces, rather than adds, a term.
-      const replacesSource = sourceStack?.closest('.plate') === destination &&
-        sourceStack.querySelectorAll('.marble').length === 1;
-      if (!replacesSource && !canCreateTerm(destination)) return;
+      if (!canInsertTerm(destination, marble)) return;
       stack = document.createElement('div');
       stack.className = 'stack';
-      const insertion = insertionPoint(destination, target, event, replacesSource ? sourceStack : null);
+      const insertion = insertionPoint(destination, target, event, movingTerm(marble));
       insertTerm(destination.querySelector('.marbles'), stack, insertion);
     }
     stack.append(marble);

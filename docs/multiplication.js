@@ -37,6 +37,8 @@ const MultiplicationView = (() => {
     stack.querySelector('.term-sum')?.remove();
     stack.querySelector('.sum-brace')?.remove();
     stack.querySelector('.force-arrow')?.remove();
+    // The volume plus 12px padding on either side and a 1px border.
+    stack.style.setProperty('--natural-width', `${width + 26}px`);
     stack.style.setProperty('--row-width', `${rowWidth}px`);
     stack.style.setProperty('--rise', `${rise}px`);
     stack.style.setProperty('--depth', `${depth}px`);

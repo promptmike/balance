@@ -29,6 +29,23 @@ class StackTests(unittest.TestCase):
         self.move(f'#tray .marble[data-weight="{weight}"]',
                   f'#{quadrant} .stack .marble' if stack else f'#{quadrant} h2')
 
+    def stack_position(self, stack, edge='top'):
+        # Padding coordinates must follow the tilted card, not its axis-aligned bounds.
+        return stack.evaluate("""(s, edge) => {
+          const r = s.getBoundingClientRect();
+          const angle = parseFloat(getComputedStyle(document.querySelector('.beam')).rotate) * Math.PI / 180;
+          const dx = edge === 'left' ? -s.offsetWidth/2 + 8 : 0;
+          const dy = edge === 'top' ? -s.offsetHeight/2 + 16 : 0;
+          return {x: r.width/2 + dx*Math.cos(angle) - dy*Math.sin(angle),
+                  y: r.height/2 + dx*Math.sin(angle) + dy*Math.cos(angle)};
+        }""", edge)
+
+    def drag_stack(self, source, target, edge=None):
+        options = {'source_position': self.stack_position(source)}
+        if edge:
+            options['target_position'] = self.stack_position(target, edge)
+        source.drag_to(target, **options)
+
     def result(self, expected):
         self.assertEqual(self.page.locator('#result').text_content(), expected)
 
@@ -86,8 +103,7 @@ class StackTests(unittest.TestCase):
         self.add(2, 'left', stack=True)
         self.add(3, 'right')
         stack = self.page.locator('#left .stack')
-        stack.drag_to(self.page.locator('#right h2'),
-                      source_position={'x': 40, 'y': 16})
+        self.drag_stack(stack, self.page.locator('#right h2'))
         self.result('Left 0 < 9 Right')
         self.assertEqual(self.page.locator('#right .stack').count(), 2)
         self.assertEqual(self.page.locator('#left .stack').count(), 0)
@@ -95,9 +111,7 @@ class StackTests(unittest.TestCase):
         self.result('Left 2 < 3 Right')
         self.move('#left .marble', '#right .stack:last-child .marble')
         self.result('Left 0 < 9 Right')
-        self.page.locator('#right .stack').last.drag_to(
-            self.page.locator('#left-bottom h2'),
-            source_position={'x': 40, 'y': 16})
+        self.drag_stack(self.page.locator('#right .stack').last, self.page.locator('#left-bottom h2'))
         self.result('Left 0/3 < 3 Right')
 
     def test_stack_invalid_drop_and_cancel(self):
@@ -105,12 +119,12 @@ class StackTests(unittest.TestCase):
         self.add(2, 'left', stack=True)
         stack = self.page.locator('#left .stack')
         for target in ('h1', '#left h2'):
-            stack.drag_to(self.page.locator(target),
-                          source_position={'x': 40, 'y': 16})
+            self.drag_stack(stack, self.page.locator(target))
             self.result('Left 3 > 0 Right')
             self.assertEqual(stack.locator('.marble').count(), 2)
         box = stack.bounding_box()
-        self.page.mouse.move(box['x'] + 40, box['y'] + 16)
+        point = self.stack_position(stack)
+        self.page.mouse.move(box['x'] + point['x'], box['y'] + point['y'])
         self.page.mouse.down()
         stack.dispatch_event('pointercancel', {'pointerId': 1})
         self.page.mouse.up()
@@ -194,8 +208,7 @@ class StackTests(unittest.TestCase):
                 self.assertEqual(self.page.locator('#move-message').count(), 0)
                 other = 'right' if quadrant != 'right' else 'left'
                 self.add(4, other)
-                self.page.locator(f'#{other} .stack').drag_to(
-                    self.page.locator(f'#{quadrant} h2'), source_position={'x': 40, 'y': 16})
+                self.drag_stack(self.page.locator(f'#{other} .stack'), self.page.locator(f'#{quadrant} h2'))
                 self.assertEqual(self.page.locator(f'#{other} .stack').count(), 1)
                 # Adding to an existing sum is legal at capacity.
                 self.add(1, quadrant, stack=True)
@@ -272,15 +285,12 @@ class StackTests(unittest.TestCase):
     def test_reorder_terms_and_disband_stack(self):
         for weight in (2, 3, 4):
             self.add(weight, 'left')
-        self.page.locator('#left .stack').last.drag_to(
-            self.page.locator('#left .stack').first,
-            source_position={'x': 40, 'y': 16}, target_position={'x': 8, 'y': 40})
+        self.drag_stack(self.page.locator('#left .stack').last, self.page.locator('#left .stack').first, edge='left')
         self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['4', '2', '3'])
         self.result('Left 24 > 0 Right')
         self.assertEqual(self.page.locator('#left .stack').last.get_attribute('data-rows'), '4')
         self.assertEqual(self.page.locator('#left .stack').last.get_attribute('data-layers'), '2')
-        self.page.locator('#left .stack').first.drag_to(
-            self.page.locator('#tray h2'), source_position={'x': 40, 'y': 16})
+        self.drag_stack(self.page.locator('#left .stack').first, self.page.locator('#tray h2'))
         self.result('Left 6 > 0 Right')
         self.assertEqual(self.page.locator('#tray .stack').count(), 0)
         self.assertEqual(self.page.locator('#tray .marble').count(), 6)
@@ -290,8 +300,7 @@ class StackTests(unittest.TestCase):
         self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['3', '2'])
         self.result('Left 6 > 0 Right')
         self.add(1, 'left', stack=True)
-        self.page.locator('#left .stack').last.drag_to(
-            self.page.locator('#tray h2'), source_position={'x': 40, 'y': 16})
+        self.drag_stack(self.page.locator('#left .stack').last, self.page.locator('#tray h2'))
         self.result('Left 3 > 0 Right')
         self.assertEqual(self.page.locator('#tray .marble').count(), 7)
         self.assertEqual(self.page.locator('#tray .stack-visual').count(), 0)
@@ -305,13 +314,11 @@ class StackTests(unittest.TestCase):
         self.assertEqual(stacks.last.locator('.ghost-row').count(), 1)
         self.assertEqual(stacks.last.locator('.force-arrow').get_attribute('data-direction'), 'up')
         self.result('Left 0/6 = 0 Right')
-        self.page.locator('#left-bottom .stack').last.drag_to(
-            self.page.locator('#left h2'), source_position={'x': 40, 'y': 16})
+        self.drag_stack(self.page.locator('#left-bottom .stack').last, self.page.locator('#left h2'))
         self.assertEqual(self.page.locator('#left .balloon').count(), 0)
         self.assertEqual(self.page.locator('#left .force-arrow').get_attribute('data-direction'), 'down')
         self.result('Left 3/2 > 0 Right')
-        self.page.locator('#left-bottom .stack').drag_to(
-            self.page.locator('#tray h2'), source_position={'x': 40, 'y': 16})
+        self.drag_stack(self.page.locator('#left-bottom .stack'), self.page.locator('#tray h2'))
         self.assertEqual(self.page.locator('#tray .balloon').count(), 0)
         self.assertEqual(self.page.locator('#tray .force-arrow').count(), 0)
         self.result('Left 3 > 0 Right')
@@ -393,13 +400,13 @@ class StackTests(unittest.TestCase):
     def test_gap_reordering_and_click_without_movement(self):
         for weight in (2, 3, 4):
             self.add(weight, 'left')
-        self.page.locator('#left .stack').first.click(position={'x': 40, 'y': 16})
+        self.page.locator('#left .stack').first.click(position=self.stack_position(self.page.locator('#left .stack').first))
         self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['2', '3', '4'])
         # Find the real screen position of the gap, accounting for scale rotation.
         point = self.page.locator('#left .stack').first.evaluate("""s => {
           const r = s.getBoundingClientRect();
           const angle = parseFloat(getComputedStyle(document.querySelector('.beam')).rotate) * Math.PI / 180;
-          const offset = -s.offsetWidth / 2 - 6;
+          const offset = -s.offsetWidth / 2 - 3;
           return {x: r.left + r.width/2 + offset*Math.cos(angle),
                   y: r.top + r.height/2 + offset*Math.sin(angle)};
         }""")
@@ -419,16 +426,132 @@ class StackTests(unittest.TestCase):
         self.page.set_viewport_size({'width': 375, 'height': 1400})
         for weight in (2, 3, 4):
             self.add(weight, 'left')
-        self.page.locator('#left .stack').last.drag_to(
-            self.page.locator('#left .stack').first,
-            source_position={'x': 40, 'y': 16}, target_position={'x': 8, 'y': 40})
+        self.drag_stack(self.page.locator('#left .stack').last, self.page.locator('#left .stack').first, edge='left')
         self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['4', '2', '3'])
         self.result('Left 24 > 0 Right')
-        self.page.locator('#left .stack').first.drag_to(
-            self.page.locator('#left h2'), source_position={'x': 40, 'y': 16})
+        self.drag_stack(self.page.locator('#left .stack').first, self.page.locator('#left h2'))
         self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['2', '3', '4'])
         self.result('Left 24 > 0 Right')
         self.assertEqual(self.page.locator('#left .stack').last.get_attribute('data-layers'), '3')
+
+    def test_term_cards_reach_quadrant_edges(self):
+        for quadrant in ('left', 'right', 'left-bottom', 'right-bottom'):
+            self.page.reload()
+            self.page.set_viewport_size({'width': 1280, 'height': 2200})
+            for weight in (1, 2, 3):
+                self.add(weight, quadrant)
+                for width in (320, 375, 768, 1280, 1920):
+                    with self.subTest(quadrant=quadrant, terms=weight, width=width):
+                        self.page.set_viewport_size({'width': width, 'height': 2200})
+                        self.page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+                        errors = self.page.locator(f'#{quadrant}').evaluate("""plate => {
+                          const errors = [];
+                          const beam = document.querySelector('.beam');
+                          beam.style.rotate = '0deg';
+                          const area = plate.querySelector('.marbles');
+                          area.scrollLeft = 0;
+                          const p = plate.getBoundingClientRect();
+                          const a = area.getBoundingClientRect();
+                          const groups = [];
+                          for (const stack of area.querySelectorAll('.stack')) {
+                            const r = stack.getBoundingClientRect();
+                            const naturalWidth = parseFloat(stack.style.getPropertyValue('--natural-width'));
+                            if (naturalWidth <= area.clientWidth - 12 && r.width > area.clientWidth - 12 + 1)
+                              errors.push('unnecessary card overflow');
+                            const center = r.top + r.height / 2;
+                            let group = groups.find(g => Math.abs(g.center - center) < 1);
+                            if (!group) groups.push(group = {center, boxes: []});
+                            group.boxes.push(r);
+                            const visual = stack.querySelector('.stack-visual').getBoundingClientRect();
+                            const real = stack.querySelector('.marble').getBoundingClientRect();
+                            const brace = stack.querySelector('.sum-brace').getBoundingClientRect();
+                            const sum = stack.querySelector('.term-sum').getBoundingClientRect();
+                            const arrow = stack.querySelector('.force-arrow').getBoundingClientRect();
+                            const rowWidth = parseFloat(stack.style.getPropertyValue('--row-width'));
+                            if (Math.abs((visual.left + visual.right - r.left - r.right)/2) > 1)
+                              errors.push('visual not centered in card');
+                            if ([visual.left, brace.left, sum.left].some(x => Math.abs(x-real.left) > 1))
+                              errors.push('real row and annotations misaligned');
+                            if (Math.abs((arrow.left + arrow.right)/2 - real.left - rowWidth/2) > 1)
+                              errors.push('arrow misaligned');
+                          }
+                          for (const {boxes} of groups) {
+                            if (boxes[0].left - p.left > 16 || boxes[0].left < p.left)
+                              errors.push('excessive left gutter');
+                            if (boxes.at(-1).right <= p.right && p.right - boxes.at(-1).right > 16)
+                              errors.push('excessive right gutter');
+                            if (Math.max(...boxes.map(b => b.width)) - Math.min(...boxes.map(b => b.width)) > 1)
+                              errors.push('unequal card widths');
+                            for (let i = 1; i < boxes.length; i++) {
+                              if (Math.abs(boxes[i].left - boxes[i-1].right - 12) > 1)
+                                errors.push('incorrect inter-term gap');
+                            }
+                          }
+                          const boxes = groups.flatMap(g => g.boxes);
+                          if (Math.min(...boxes.map(b => b.top)) - a.top > 8 ||
+                              a.bottom - Math.max(...boxes.map(b => b.bottom)) > 8)
+                            errors.push('excessive term-area vertical padding');
+                          beam.style.removeProperty('rotate');
+                          return errors;
+                        }""")
+                        self.assertEqual(errors, [])
+
+    def test_insertion_cues_match_capacity(self):
+        self.page.set_viewport_size({'width': 1280, 'height': 2200})
+
+        def edge_drop(source_selector, quadrant, after=False, whole=False, allowed=False):
+            source = self.page.locator(source_selector).first
+            before = self.page.locator('#result').text_content()
+            counts = self.page.locator('.plate .stack').count()
+            box = source.bounding_box()
+            start = self.stack_position(source) if whole else {'x': box['width']/2, 'y': box['height']/2}
+            self.page.mouse.move(box['x'] + start['x'], box['y'] + start['y'])
+            self.page.mouse.down()
+            self.assertEqual(self.page.locator('.preview').count(), 1)
+            target = self.page.locator(f'#{quadrant} .stack')
+            target = target.last if after else target.first
+            point = target.evaluate("""(stack, after) => {
+              const r = stack.getBoundingClientRect();
+              const angle = parseFloat(getComputedStyle(document.querySelector('.beam')).rotate) * Math.PI / 180;
+              const offset = (after ? 1 : -1) * (stack.offsetWidth/2 + 3);
+              return {x: r.left+r.width/2+offset*Math.cos(angle),
+                      y: r.top+r.height/2+offset*Math.sin(angle)};
+            }""", after)
+            self.page.mouse.move(point['x'], point['y'], steps=5)
+            cues = self.page.locator('.drop-before, .drop-after').count()
+            self.page.mouse.up()
+            self.assertEqual(cues, 1 if allowed else 0)
+            self.assertEqual(self.page.locator('.drop-before, .drop-after').count(), 0)
+            if not allowed:
+                self.assertEqual(self.page.locator('#result').text_content(), before)
+                self.assertEqual(self.page.locator('.plate .stack').count(), counts)
+            self.assertEqual(self.page.locator('.marble').count(), 8)
+
+        for quadrant in ('left', 'right', 'left-bottom', 'right-bottom'):
+            with self.subTest(quadrant=quadrant):
+                self.page.reload()
+                for weight in (1, 2, 3):
+                    self.add(weight, quadrant)
+                edge_drop('#tray .marble[data-weight="4"]', quadrant)
+                edge_drop('#tray .marble[data-weight="4"]', quadrant, after=True)
+                other = 'right' if quadrant != 'right' else 'left'
+                self.add(4, other)
+                edge_drop(f'#{other} .stack', quadrant, whole=True, after=True)
+                # Splitting a non-singleton would add a fourth term too.
+                self.move('#tray .marble[data-weight="1"]', f'#{quadrant} .stack:first-child .marble')
+                edge_drop(f'#{quadrant} .stack:first-child .marble', quadrant, after=True)
+                # Reordering a complete term (or singleton) at capacity is legal.
+                before = self.page.locator('#result').text_content()
+                edge_drop(f'#{quadrant} .stack:first-child', quadrant, whole=True, after=True, allowed=True)
+                edge_drop(f'#{quadrant} .stack:first-child .marble', quadrant, after=True, allowed=True)
+                self.assertEqual(self.page.locator('#result').text_content(), before)
+                self.assertEqual(self.page.locator(f'#{quadrant} .stack').count(), 3)
+                # A free slot must still advertise and accept an insertion.
+                self.move(f'#{quadrant} .stack:last-child .marble', '#tray h2')
+                edge_drop(f'#{other} .stack', quadrant, whole=True, allowed=True)
+                self.assertEqual(self.page.locator(f'#{quadrant} .stack').count(), 3)
+                self.assertEqual(self.page.locator(f'#{other} .stack').count(), 0)
+                self.assertEqual(self.page.locator('#move-message').count(), 0)
 
     def test_extreme_layouts(self):
         for width in (320, 375, 768, 1280, 1920):

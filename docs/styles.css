@@ -50,6 +50,11 @@ h1 {
   padding: 0.5rem;
 }
 
+.plate {
+  display: flex;
+  flex-direction: column;
+}
+
 .numerator {
   border-bottom: 0.45rem solid #43535a;
   border-radius: 0.5rem 0.5rem 0 0;
@@ -72,26 +77,33 @@ h2 {
   min-height: 5.7rem;
 }
 
-/* Each horizontal group is one sum; separate sums wrap as whole groups. */
+/* Equal padded cards fill each row; large volumes wrap or scroll without shrinking. */
 .plate .marbles {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  align-content: center;
+  flex: 1 1 auto;
+  align-items: stretch;
+  align-content: stretch;
   justify-content: safe center;
   gap: 0.75rem;
-  padding: 0.5rem 0.25rem 2.75rem;
+  padding: 6px;
   overflow-x: auto;
 }
 
 .stack {
   display: flex;
   flex-direction: row;
-  flex: 0 0 auto;
+  flex: 1 1 var(--term-width, var(--natural-width));
+  min-width: var(--natural-width);
+  justify-content: center;
+  align-items: center;
   position: relative;
   isolation: isolate;
   --visual-top: 40px;
-  padding: calc(var(--visual-top) + var(--rise, 0px)) calc(12px + var(--depth, 0px)) 88px 12px;
+  --bottom-space: 88px;
+  --content-top: calc((100% - var(--visual-top) - var(--rise) - 44px - var(--bottom-space)) / 2);
+  --content-left: calc((100% - var(--row-width) - var(--depth)) / 2);
+  padding: calc(var(--visual-top) + var(--rise, 0px)) calc(12px + var(--depth, 0px)) var(--bottom-space) 12px;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -159,8 +171,8 @@ main > p {
 
 .stack-visual {
   position: absolute;
-  top: var(--visual-top);
-  left: 12px;
+  top: calc(var(--content-top) + var(--visual-top));
+  left: var(--content-left);
   z-index: 0;
   pointer-events: none;
 }
@@ -171,7 +183,7 @@ main > p {
 
 .term-product {
   position: absolute;
-  top: 8px;
+  top: calc(var(--content-top) + 8px);
   left: 12px;
   right: 12px;
   text-align: center;
@@ -213,8 +225,8 @@ main > p {
 }
 .force-arrow {
   position: absolute;
-  top: calc(var(--visual-top) + var(--rise) + 96px);
-  left: calc(12px + var(--row-width) / 2 - 12px);
+  top: calc(var(--content-top) + var(--visual-top) + var(--rise) + 96px);
+  left: calc(var(--content-left) + var(--row-width) / 2 - 12px);
   width: 24px;
   height: 24px;
   pointer-events: none;
@@ -226,19 +238,19 @@ main > p {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.balloon-stack { --visual-top: 72px; padding-bottom: 60px; }
-.balloon-stack .force-arrow { top: 38px; }
+.balloon-stack { --visual-top: 72px; --bottom-space: 60px; }
+.balloon-stack .force-arrow { top: calc(var(--content-top) + 38px); }
 .sum-brace {
   position: absolute;
-  top: calc(var(--visual-top) + var(--rise) + 50px);
-  left: 12px;
+  top: calc(var(--content-top) + var(--visual-top) + var(--rise) + 50px);
+  left: var(--content-left);
   pointer-events: none;
 }
 .sum-brace path { fill: none; stroke: #43535a; stroke-width: 1.5; }
 .term-sum {
   position: absolute;
-  top: calc(var(--visual-top) + var(--rise) + 70px);
-  left: 12px;
+  top: calc(var(--content-top) + var(--visual-top) + var(--rise) + 70px);
+  left: var(--content-left);
   width: var(--row-width);
   font-size: 0.8rem;
   text-align: center;
