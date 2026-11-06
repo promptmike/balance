@@ -134,7 +134,7 @@ class StackTests(unittest.TestCase):
                     beamWidth: beam.offsetWidth,
                     sameRow: marbles.every(m => m.offsetTop === marbles[0].offsetTop),
                     ordered: marbles.every((m, i) => !i || m.offsetLeft > marbles[i-1].offsetLeft),
-                    factorsHorizontal: stacks[0].offsetTop + stacks[0].offsetHeight === stacks[1].offsetTop + stacks[1].offsetHeight,
+                    factorsHorizontal: Math.abs((stacks[0].offsetTop + stacks[0].offsetHeight / 2) - (stacks[1].offsetTop + stacks[1].offsetHeight / 2)) <= 1,
                     scrollable: area.scrollWidth > area.clientWidth,
                     pageWidth: document.documentElement.scrollWidth,
                     tilt: Math.abs(parseFloat(beam.style.getPropertyValue('--tilt'))),
@@ -191,7 +191,7 @@ class StackTests(unittest.TestCase):
                 self.assertEqual(self.page.locator('#result').text_content(), before)
                 self.assertEqual(self.page.locator(f'#{quadrant} .stack').count(), 3)
                 self.assertEqual(self.page.locator('#tray .marble').count(), 5)
-                self.assertIn('3 terms', self.page.locator('#move-message').text_content())
+                self.assertEqual(self.page.locator('#move-message').count(), 0)
                 other = 'right' if quadrant != 'right' else 'left'
                 self.add(4, other)
                 self.page.locator(f'#{other} .stack').drag_to(
@@ -351,6 +351,84 @@ class StackTests(unittest.TestCase):
                     self.assertTrue(item['sumBelow'])
                     self.assertEqual(item['braceWidth'], item['realWidth'])
                     self.assertTrue(item['arrowOutside'])
+
+    def test_centered_terms_and_sub_marble_gaps(self):
+        for weight in (1, 2, 3):
+            self.add(weight, 'left')
+        for width in (320, 375, 768, 1280, 1920):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 1400})
+                self.page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+                errors = self.page.evaluate("""() => {
+                  const errors = [];
+                  if (document.documentElement.scrollWidth > innerWidth) errors.push('page overflow');
+                  const beam = document.querySelector('.beam');
+                  beam.style.rotate = '0deg';
+                  const area = document.querySelector('#left .marbles');
+                  const areaBox = area.getBoundingClientRect();
+                  const groups = [];
+                  for (const stack of area.querySelectorAll('.stack')) {
+                    const box = stack.getBoundingClientRect();
+                    const center = box.top + box.height / 2;
+                    let group = groups.find(g => Math.abs(g.center - center) < 1);
+                    if (!group) groups.push(group = {center, boxes: []});
+                    group.boxes.push(box);
+                  }
+                  for (const {boxes} of groups) {
+                    const span = boxes.at(-1).right - boxes[0].left;
+                    if (span <= area.clientWidth - 8) {
+                      if (Math.abs((boxes[0].left + boxes.at(-1).right) / 2 -
+                          (areaBox.left + areaBox.right) / 2) > 1) errors.push('not centered');
+                    } else if (boxes[0].left < areaBox.left) errors.push('unreachable start');
+                    for (let i = 1; i < boxes.length; i++) {
+                      const gap = boxes[i].left - boxes[i-1].right;
+                      if (Math.abs(gap - 12) > 1 || gap >= 44) errors.push('incorrect gap');
+                    }
+                  }
+                  beam.style.removeProperty('rotate');
+                  return errors;
+                }""")
+                self.assertEqual(errors, [])
+
+    def test_gap_reordering_and_click_without_movement(self):
+        for weight in (2, 3, 4):
+            self.add(weight, 'left')
+        self.page.locator('#left .stack').first.click(position={'x': 40, 'y': 16})
+        self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['2', '3', '4'])
+        # Find the real screen position of the gap, accounting for scale rotation.
+        point = self.page.locator('#left .stack').first.evaluate("""s => {
+          const r = s.getBoundingClientRect();
+          const angle = parseFloat(getComputedStyle(document.querySelector('.beam')).rotate) * Math.PI / 180;
+          const offset = -s.offsetWidth / 2 - 6;
+          return {x: r.left + r.width/2 + offset*Math.cos(angle),
+                  y: r.top + r.height/2 + offset*Math.sin(angle)};
+        }""")
+        source = self.page.locator('#left .stack').last.locator('.marble').bounding_box()
+        self.page.mouse.move(source['x'] + source['width']/2, source['y'] + source['height']/2)
+        self.page.mouse.down()
+        self.page.mouse.move(point['x'], point['y'], steps=5)
+        self.assertEqual(self.page.locator('.drop-before').count(), 1)
+        self.page.mouse.up()
+        self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['4', '2', '3'])
+        self.assertEqual(self.page.locator('.drop-before, .drop-after').count(), 0)
+        self.result('Left 24 > 0 Right')
+        self.assertEqual(self.page.locator('#left .stack').last.get_attribute('data-rows'), '4')
+        self.assertEqual(self.page.locator('#left .stack').last.get_attribute('data-layers'), '2')
+
+    def test_stack_reorder_in_wrapped_layout(self):
+        self.page.set_viewport_size({'width': 375, 'height': 1400})
+        for weight in (2, 3, 4):
+            self.add(weight, 'left')
+        self.page.locator('#left .stack').last.drag_to(
+            self.page.locator('#left .stack').first,
+            source_position={'x': 40, 'y': 16}, target_position={'x': 8, 'y': 40})
+        self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['4', '2', '3'])
+        self.result('Left 24 > 0 Right')
+        self.page.locator('#left .stack').first.drag_to(
+            self.page.locator('#left h2'), source_position={'x': 40, 'y': 16})
+        self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['2', '3', '4'])
+        self.result('Left 24 > 0 Right')
+        self.assertEqual(self.page.locator('#left .stack').last.get_attribute('data-layers'), '3')
 
     def test_extreme_layouts(self):
         for width in (320, 375, 768, 1280, 1920):

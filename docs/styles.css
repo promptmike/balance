@@ -76,8 +76,9 @@ h2 {
 .plate .marbles {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  align-content: flex-end;
+  align-items: center;
+  align-content: center;
+  justify-content: safe center;
   gap: 0.75rem;
   padding: 0.5rem 0.25rem 2.75rem;
   overflow-x: auto;
@@ -180,12 +181,7 @@ main > p {
   pointer-events: none;
 }
 
-#move-message {
-  min-height: 1.5em;
-  margin: 0;
-  text-align: center;
-  color: #8a2633;
-}
+
 
 /* Insertion cues do not change the layout while a pointer is captured. */
 .stack.drop-before::before, .stack.drop-after::after {

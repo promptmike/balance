@@ -5,7 +5,6 @@ const leftBottom = document.querySelector('#left-bottom');
 const rightBottom = document.querySelector('#right-bottom');
 const tray = document.querySelector('#tray');
 const result = document.querySelector('#result');
-const moveMessage = document.querySelector('#move-message');
 const maxTerms = 3;
 const colours = [
   { name: 'Red', colour: '#a52339', weight: 1 },
@@ -87,7 +86,6 @@ document.addEventListener('pointerdown', (event) => {
   const marble = event.target.closest('.marble, .stack');
   if (!marble || drag || event.button !== 0) return;
 
-  moveMessage.textContent = '';
   marble.setPointerCapture(event.pointerId);
   const preview = marble.cloneNode(true);
   preview.classList.add('preview');
@@ -108,9 +106,7 @@ document.addEventListener('pointermove', (event) => {
 });
 
 function canCreateTerm(plate) {
-  if (plate.querySelectorAll('.stack').length < maxTerms) return true;
-  moveMessage.textContent = 'Each quadrant can hold up to 3 terms. Combine marbles into existing terms or move a term out first.';
-  return false;
+  return plate.querySelectorAll('.stack').length < maxTerms;
 }
 
 // Compare positions in the beam's unrotated coordinate system, including wrapped rows.
@@ -158,6 +154,7 @@ function showDropMarker(event) {
   const destination = target?.closest('.plate');
   if (!destination) return;
   const wholeStack = drag.marble.classList.contains('stack');
+  if (wholeStack && target.closest('.stack') === drag.marble) return;
   if (!wholeStack && target.closest('.stack')) return; // Add to this sum.
   const source = drag.marble.closest('.stack');
   const excluded = wholeStack || source?.querySelectorAll('.marble').length === 1 ? source : null;
@@ -186,6 +183,7 @@ function finishDrag(event) {
   if (!destination) return;
 
   if (marble.classList.contains('stack')) {
+    if (target.closest('.stack') === marble) return;
     if (destination === tray) {
       tray.querySelector('.marbles').append(...marble.querySelectorAll('.marble'));
       marble.remove();
