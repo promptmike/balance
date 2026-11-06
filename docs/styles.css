@@ -21,16 +21,16 @@ h1 {
 
 .scale {
   position: relative;
-  padding: 1.75rem 0 3.25rem;
+  padding: 1.75rem 0;
 }
 
 .stand {
   position: absolute;
+  top: 50%;
   bottom: 0;
   left: 50%;
   translate: -50%;
   width: 4.5rem;
-  height: 4rem;
   background: #43535a;
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
@@ -39,11 +39,10 @@ h1 {
   position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-  border-bottom: 0.45rem solid #43535a;
-  border-radius: 0.3rem;
+  grid-auto-rows: 1fr;
+  column-gap: 0.75rem;
   rotate: var(--tilt, 0deg);
-  transform-origin: center bottom;
+  transform-origin: center;
 }
 
 .plate, #tray {
@@ -51,6 +50,15 @@ h1 {
   border: 1px solid #aab4b5;
   border-radius: 0.5rem;
   padding: 0.5rem;
+}
+
+.numerator {
+  border-bottom: 0.45rem solid #43535a;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.denominator {
+  border-radius: 0 0 0.5rem 0.5rem;
 }
 
 h2 {

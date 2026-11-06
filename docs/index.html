@@ -9,16 +9,24 @@
 <body>
   <main>
     <h1>Balance</h1>
-    <p>Drag marbles between the tray and the two plates. The number on each marble is its weight.</p>
+    <p>Drag marbles above or below either plate. Each side divides the total above by the total below. An empty bottom counts as 1.</p>
     <div class="scale">
       <div class="stand" aria-hidden="true"></div>
       <div class="beam">
-        <section class="plate" id="left">
-          <h2>Left plate</h2>
+        <section class="plate numerator" id="left">
+          <h2>Left top</h2>
           <div class="marbles"></div>
         </section>
-        <section class="plate" id="right">
-          <h2>Right plate</h2>
+        <section class="plate numerator" id="right">
+          <h2>Right top</h2>
+          <div class="marbles"></div>
+        </section>
+        <section class="plate denominator" id="left-bottom">
+          <h2>Left bottom</h2>
+          <div class="marbles"></div>
+        </section>
+        <section class="plate denominator" id="right-bottom">
+          <h2>Right bottom</h2>
           <div class="marbles"></div>
         </section>
       </div>

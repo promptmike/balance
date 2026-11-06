@@ -1,6 +1,8 @@
 const beam = document.querySelector('.beam');
 const left = document.querySelector('#left');
 const right = document.querySelector('#right');
+const leftBottom = document.querySelector('#left-bottom');
+const rightBottom = document.querySelector('#right-bottom');
 const tray = document.querySelector('#tray');
 const result = document.querySelector('#result');
 const colours = [
@@ -27,13 +29,24 @@ function totalWeight(plate) {
     .reduce((sum, marble) => sum + Number(marble.dataset.weight), 0);
 }
 
+function formatWeight(top, bottom) {
+  return bottom === 1 ? String(top) : `${top}/${bottom}`;
+}
+
 function updateScale() {
-  const leftWeight = totalWeight(left);
-  const rightWeight = totalWeight(right);
-  const difference = rightWeight - leftWeight;
-  const comparison = difference === 0 ? '=' : difference > 0 ? '<' : '>';
+  const leftTop = totalWeight(left);
+  const rightTop = totalWeight(right);
+  const leftDenominator = totalWeight(leftBottom) || 1;
+  const rightDenominator = totalWeight(rightBottom) || 1;
+
+  // Cross-multiply to compare fractions exactly, then scale the tilt by their difference.
+  const numerator = rightTop * leftDenominator - leftTop * rightDenominator;
+  const difference = numerator / (leftDenominator * rightDenominator);
+  const comparison = numerator === 0 ? '=' : numerator > 0 ? '<' : '>';
   const tilt = Math.max(-8, Math.min(8, difference * 2));
   beam.style.setProperty('--tilt', `${tilt}deg`);
+  const leftWeight = formatWeight(leftTop, leftDenominator);
+  const rightWeight = formatWeight(rightTop, rightDenominator);
   result.value = `Left ${leftWeight} ${comparison} ${rightWeight} Right`;
 }
 
@@ -76,7 +89,7 @@ function finishDrag(event) {
   const target = document.elementFromPoint(event.clientX, event.clientY);
   const destination = target?.closest('.plate, #tray');
   if (destination && destination !== marble.closest('.plate, #tray')) {
-  destination.querySelector('.marbles').append(marble);
+    destination.querySelector('.marbles').append(marble);
     updateScale();
   }
 }
