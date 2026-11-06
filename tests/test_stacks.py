@@ -434,7 +434,7 @@ class StackTests(unittest.TestCase):
         self.result('Left 24 > 0 Right')
         self.assertEqual(self.page.locator('#left .stack').last.get_attribute('data-layers'), '3')
 
-    def test_term_cards_reach_quadrant_edges(self):
+    def test_whitespace_reflects_available_capacity(self):
         for quadrant in ('left', 'right', 'left-bottom', 'right-bottom'):
             self.page.reload()
             self.page.set_viewport_size({'width': 1280, 'height': 2200})
@@ -452,6 +452,7 @@ class StackTests(unittest.TestCase):
                           area.scrollLeft = 0;
                           const p = plate.getBoundingClientRect();
                           const a = area.getBoundingClientRect();
+                          const full = area.querySelectorAll('.stack').length === 3;
                           const groups = [];
                           for (const stack of area.querySelectorAll('.stack')) {
                             const r = stack.getBoundingClientRect();
@@ -476,9 +477,9 @@ class StackTests(unittest.TestCase):
                               errors.push('arrow misaligned');
                           }
                           for (const {boxes} of groups) {
-                            if (boxes[0].left - p.left > 16 || boxes[0].left < p.left)
+                            if (full && (boxes[0].left - p.left > 16 || boxes[0].left < p.left))
                               errors.push('excessive left gutter');
-                            if (boxes.at(-1).right <= p.right && p.right - boxes.at(-1).right > 16)
+                            if (full && boxes.at(-1).right <= p.right && p.right - boxes.at(-1).right > 16)
                               errors.push('excessive right gutter');
                             if (Math.max(...boxes.map(b => b.width)) - Math.min(...boxes.map(b => b.width)) > 1)
                               errors.push('unequal card widths');
@@ -488,13 +489,47 @@ class StackTests(unittest.TestCase):
                             }
                           }
                           const boxes = groups.flatMap(g => g.boxes);
-                          if (Math.min(...boxes.map(b => b.top)) - a.top > 8 ||
-                              a.bottom - Math.max(...boxes.map(b => b.bottom)) > 8)
+                          if (full && (Math.min(...boxes.map(b => b.top)) - a.top > 8 ||
+                              a.bottom - Math.max(...boxes.map(b => b.bottom)) > 8))
                             errors.push('excessive term-area vertical padding');
+                          if (!full && (Math.min(...boxes.map(b => b.top)) - a.top < 44 ||
+                              a.bottom - Math.max(...boxes.map(b => b.bottom)) < 44))
+                            errors.push('no marble-sized blank drop area');
                           beam.style.removeProperty('rotate');
                           return errors;
                         }""")
                         self.assertEqual(errors, [])
+
+    def test_blank_space_accepts_terms_and_returns_after_removal(self):
+        for width in (375, 1280):
+            for quadrant in ('left', 'right', 'left-bottom', 'right-bottom'):
+                with self.subTest(width=width, quadrant=quadrant):
+                    self.page.reload()
+                    self.page.set_viewport_size({'width': width, 'height': 2200})
+                    self.add(1, quadrant)
+                    for weight in (2, 3):
+                        area = self.page.locator(f'#{quadrant} .marbles')
+                        area.scroll_into_view_if_needed()
+                        point = area.evaluate("""area => {
+                          const r = area.getBoundingClientRect();
+                          const angle = parseFloat(getComputedStyle(document.querySelector('.beam')).rotate)*Math.PI/180;
+                          const dy = area.offsetHeight/2 - 25;
+                          const x = r.left+r.width/2 - dy*Math.sin(angle);
+                          const y = r.top+r.height/2 + dy*Math.cos(angle);
+                          return {x, y, blank: document.elementFromPoint(x,y) === area};
+                        }""")
+                        self.assertTrue(point['blank'])
+                        source = self.page.locator(f'#tray .marble[data-weight="{weight}"]').first.bounding_box()
+                        self.page.mouse.move(source['x']+source['width']/2, source['y']+source['height']/2)
+                        self.page.mouse.down()
+                        self.page.mouse.move(point['x'], point['y'], steps=5)
+                        self.page.mouse.up()
+                        self.assertEqual(self.page.locator(f'#{quadrant} .stack').count(), weight)
+                    self.move(f'#{quadrant} .stack:last-child .marble', '#tray h2')
+                    self.assertEqual(self.page.locator(f'#{quadrant} .stack').count(), 2)
+                    padding = self.page.locator(f'#{quadrant} .marbles').evaluate('e => parseFloat(getComputedStyle(e).paddingBottom)')
+                    self.assertGreaterEqual(padding, 44)
+                    self.assertEqual(self.page.locator('.marble').count(), 8)
 
     def test_insertion_cues_match_capacity(self):
         self.page.set_viewport_size({'width': 1280, 'height': 2200})

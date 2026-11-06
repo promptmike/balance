@@ -55,7 +55,8 @@ function updateScale() {
       MultiplicationView.render(stack, factors);
       termWidth = Math.max(termWidth, parseFloat(stack.style.getPropertyValue('--natural-width')));
     }
-    // Equal minimum widths wrap together; flex growth fills each row to its edges.
+    // Only full quadrants fill their space; spare capacity stays available for drops.
+    plate.classList.toggle('at-capacity', factors.length === maxTerms);
     plate.querySelector('.marbles').style.setProperty('--term-width', `${termWidth}px`);
   }
   const leftTop = quadrantWeight(left);

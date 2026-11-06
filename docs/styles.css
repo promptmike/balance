@@ -77,23 +77,23 @@ h2 {
   min-height: 5.7rem;
 }
 
-/* Equal padded cards fill each row; large volumes wrap or scroll without shrinking. */
+/* Compact, centered terms leave a marble-sized drop area while slots remain. */
 .plate .marbles {
   display: flex;
   flex-wrap: wrap;
   flex: 1 1 auto;
-  align-items: stretch;
-  align-content: stretch;
+  align-items: center;
+  align-content: center;
   justify-content: safe center;
   gap: 0.75rem;
-  padding: 6px;
+  padding: 56px 6px;
   overflow-x: auto;
 }
 
 .stack {
   display: flex;
   flex-direction: row;
-  flex: 1 1 var(--term-width, var(--natural-width));
+  flex: 0 1 var(--term-width, var(--natural-width));
   min-width: var(--natural-width);
   justify-content: center;
   align-items: center;
@@ -110,6 +110,17 @@ h2 {
   border-radius: 1.5rem;
   background: #edf1f3;
   border: 1px solid #d0dade;
+}
+
+/* At capacity, expand padding to make the occupied space visually explicit. */
+.plate.at-capacity .marbles {
+  align-items: stretch;
+  align-content: stretch;
+  padding: 6px;
+}
+
+.plate.at-capacity .stack {
+  flex-grow: 1;
 }
 
 .stack .marble {
