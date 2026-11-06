@@ -81,6 +81,41 @@ class StackTests(unittest.TestCase):
         self.assertEqual(self.page.locator('.preview, .dragging').count(), 0)
         self.assertEqual(self.page.locator('#left .stack').count(), 1)
 
+    def test_drag_whole_stack_and_keep_marble_editing(self):
+        self.add(1, 'left')
+        self.add(2, 'left', stack=True)
+        self.add(3, 'right')
+        stack = self.page.locator('#left .stack')
+        stack.drag_to(self.page.locator('#right .stack'),
+                      source_position={'x': 24, 'y': 8})
+        self.result('Left 0 < 9 Right')
+        self.assertEqual(self.page.locator('#right .stack').count(), 2)
+        self.assertEqual(self.page.locator('#left .stack').count(), 0)
+        self.move('#right .marble[data-weight="2"]', '#left h2')
+        self.result('Left 2 < 3 Right')
+        self.move('#left .marble', '#right .stack:last-child .marble')
+        self.result('Left 0 < 9 Right')
+        self.page.locator('#right .stack').last.drag_to(
+            self.page.locator('#left-bottom h2'),
+            source_position={'x': 24, 'y': 8})
+        self.result('Left 0/3 < 3 Right')
+
+    def test_stack_invalid_drop_and_cancel(self):
+        self.add(1, 'left')
+        self.add(2, 'left', stack=True)
+        stack = self.page.locator('#left .stack')
+        for target in ('h1', '#tray h2', '#left h2'):
+            stack.drag_to(self.page.locator(target),
+                          source_position={'x': 24, 'y': 8})
+            self.result('Left 3 > 0 Right')
+            self.assertEqual(stack.locator('.marble').count(), 2)
+        box = stack.bounding_box()
+        self.page.mouse.move(box['x'] + 24, box['y'] + 8)
+        self.page.mouse.down()
+        stack.dispatch_event('pointercancel', {'pointerId': 1})
+        self.page.mouse.up()
+        self.assertEqual(self.page.locator('.preview, .dragging').count(), 0)
+
     def test_extreme_layouts(self):
         for width in (320, 375, 1280):
             for quadrant in ('left', 'left-bottom'):
@@ -107,6 +142,7 @@ class StackTests(unittest.TestCase):
                               errors.push('overlapping stacks');
                           }));
                           for (const marble of document.querySelectorAll('.stack .marble')) {
+                            marble.scrollIntoView({block: 'center'});
                             const r = marble.getBoundingClientRect();
                             if (document.elementFromPoint(r.x+r.width/2, r.y+r.height/2) !== marble)
                               errors.push('hidden marble label');

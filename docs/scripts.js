@@ -68,7 +68,7 @@ function movePreview(event) {
 }
 
 document.addEventListener('pointerdown', (event) => {
-  const marble = event.target.closest('.marble');
+  const marble = event.target.closest('.marble, .stack');
   if (!marble || drag || event.button !== 0) return;
 
   marble.setPointerCapture(event.pointerId);
@@ -76,6 +76,7 @@ document.addEventListener('pointerdown', (event) => {
   preview.classList.add('preview');
   preview.setAttribute('aria-hidden', 'true');
   preview.style.width = `${marble.offsetWidth}px`;
+  preview.style.height = `${marble.offsetHeight}px`;
   document.body.append(preview);
   marble.classList.add('dragging');
   drag = { marble, preview, pointerId: event.pointerId };
@@ -99,6 +100,15 @@ function finishDrag(event) {
   const target = document.elementFromPoint(event.clientX, event.clientY);
   const destination = target?.closest('.plate, #tray');
   if (!destination) return;
+
+  if (marble.classList.contains('stack')) {
+    // A whole stack remains a separate sum, even when dropped over another stack.
+    if (destination !== tray && destination !== marble.closest('.plate')) {
+      destination.querySelector('.marbles').append(marble);
+      updateScale();
+    }
+    return;
+  }
 
   const sourceStack = marble.closest('.stack');
   if (destination === tray) {
