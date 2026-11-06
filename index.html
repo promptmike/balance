@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Balance</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f6f3eb;
+      color: #202d33;
+      font: 1rem/1.5 system-ui, sans-serif;
+    }
+    main { max-width: 42rem; margin: auto; padding: 1.25rem; }
+    h1 { margin: 0; }
+    .scale { position: relative; padding: 1.75rem 0 3.25rem; }
+    .stand {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      translate: -50%;
+      width: 4.5rem;
+      height: 4rem;
+      background: #43535a;
+      clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    }
+    .beam {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      border-bottom: 0.45rem solid #43535a;
+      border-radius: 0.3rem;
+      rotate: var(--tilt, 0deg);
+      transform-origin: center bottom;
+    }
+    .plate, #tray {
+      background: #fff;
+      border: 1px solid #aab4b5;
+      border-radius: 0.5rem;
+      padding: 0.5rem;
+    }
+    h2 { margin: 0 0 0.4rem; font-size: 1rem; }
+    .marbles {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 2.75rem));
+      align-content: end;
+      gap: 0.2rem;
+      min-height: 5.7rem;
+    }
+    .marble {
+      display: grid;
+      place-items: center;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: radial-gradient(circle at 32% 25%, #ffffff55, transparent 45%), var(--colour);
+      color: white;
+      font-weight: bold;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+    }
+    .marble.dragging { opacity: 0.25; }
+    .marble.preview {
+      position: fixed;
+      z-index: 1;
+      translate: -50% -50%;
+      pointer-events: none;
+      opacity: 1;
+    }
+    #result { display: block; text-align: center; margin: 0.5rem 0; font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Balance</h1>
+    <p>Drag marbles between the tray and the two plates. The number on each marble is its weight.</p>
+    <div class="scale">
+      <div class="stand" aria-hidden="true"></div>
+      <div class="beam">
+        <section class="plate" id="left">
+          <h2>Left plate</h2>
+          <div class="marbles"></div>
+        </section>
+        <section class="plate" id="right">
+          <h2>Right plate</h2>
+          <div class="marbles"></div>
+        </section>
+      </div>
+    </div>
+    <output id="result" aria-live="polite">Left 0 = 0 Right</output>
+    <section id="tray">
+      <h2>Marble tray</h2>
+      <div class="marbles"></div>
+    </section>
+  </main>
+  <script>
+    const beam = document.querySelector('.beam');
+    const left = document.querySelector('#left');
+    const right = document.querySelector('#right');
+    const tray = document.querySelector('#tray');
+    const result = document.querySelector('#result');
+    const colours = [
+      { name: 'Red', colour: '#a52339', weight: 1 },
+      { name: 'Blue', colour: '#1658a1', weight: 2 },
+      { name: 'Green', colour: '#217044', weight: 3 },
+      { name: 'Purple', colour: '#693b91', weight: 4 },
+    ];
+
+    for (const { name, colour, weight } of colours) {
+      for (let copy = 0; copy < 2; copy++) {
+        const marble = document.createElement('span');
+        marble.className = 'marble';
+        marble.style.setProperty('--colour', colour);
+        marble.dataset.weight = weight;
+        marble.title = `${name} marble, weight ${weight}`;
+        marble.textContent = weight;
+        tray.querySelector('.marbles').append(marble);
+      }
+    }
+
+    function totalWeight(plate) {
+      return Array.from(plate.querySelectorAll('.marble'))
+        .reduce((sum, marble) => sum + Number(marble.dataset.weight), 0);
+    }
+
+    function updateScale() {
+      const leftWeight = totalWeight(left);
+      const rightWeight = totalWeight(right);
+      const difference = rightWeight - leftWeight;
+      const comparison = difference === 0 ? '=' : difference > 0 ? '<' : '>';
+      const tilt = Math.max(-8, Math.min(8, difference * 2));
+      beam.style.setProperty('--tilt', `${tilt}deg`);
+      result.value = `Left ${leftWeight} ${comparison} ${rightWeight} Right`;
+    }
+
+    let drag;
+
+    function movePreview(event) {
+      drag.preview.style.left = `${event.clientX}px`;
+      drag.preview.style.top = `${event.clientY}px`;
+    }
+
+    document.addEventListener('pointerdown', (event) => {
+      const marble = event.target.closest('.marble');
+      if (!marble || drag || event.button !== 0) return;
+
+      marble.setPointerCapture(event.pointerId);
+      const preview = marble.cloneNode(true);
+      preview.classList.add('preview');
+      preview.setAttribute('aria-hidden', 'true');
+      preview.style.width = `${marble.offsetWidth}px`;
+      document.body.append(preview);
+      marble.classList.add('dragging');
+      drag = { marble, preview, pointerId: event.pointerId };
+      movePreview(event);
+    });
+
+    document.addEventListener('pointermove', (event) => {
+      if (drag?.pointerId === event.pointerId) movePreview(event);
+    });
+
+    function finishDrag(event) {
+      if (drag?.pointerId !== event.pointerId) return;
+
+      const { marble, preview } = drag;
+      drag = undefined;
+      preview.remove();
+      marble.classList.remove('dragging');
+
+      if (event.type !== 'pointerup') return;
+
+      const target = document.elementFromPoint(event.clientX, event.clientY);
+      const destination = target?.closest('.plate, #tray');
+      if (destination && destination !== marble.closest('.plate, #tray')) {
+        destination.querySelector('.marbles').append(marble);
+        updateScale();
+      }
+    }
+
+    document.addEventListener('pointerup', finishDrag);
+    document.addEventListener('pointercancel', finishDrag);
+    document.addEventListener('lostpointercapture', finishDrag);
+  </script>
+</body>
+</html>
