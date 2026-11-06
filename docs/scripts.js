@@ -24,9 +24,16 @@ for (const { name, colour, weight } of colours) {
   }
 }
 
-function totalWeight(plate) {
-  return Array.from(plate.querySelectorAll('.marble'))
+function stackWeight(stack) {
+  return Array.from(stack.querySelectorAll('.marble'))
     .reduce((sum, marble) => sum + Number(marble.dataset.weight), 0);
+}
+
+function quadrantWeight(plate) {
+  const stacks = Array.from(plate.querySelectorAll('.stack'));
+  // Preserve the empty numerator (0) and empty denominator (1) conventions.
+  if (!stacks.length) return plate.classList.contains('denominator') ? 1 : 0;
+  return stacks.reduce((product, stack) => product * stackWeight(stack), 1);
 }
 
 function formatWeight(top, bottom) {
@@ -34,16 +41,19 @@ function formatWeight(top, bottom) {
 }
 
 function updateScale() {
-  const leftTop = totalWeight(left);
-  const rightTop = totalWeight(right);
-  const leftDenominator = totalWeight(leftBottom) || 1;
-  const rightDenominator = totalWeight(rightBottom) || 1;
+  const leftTop = quadrantWeight(left);
+  const rightTop = quadrantWeight(right);
+  const leftDenominator = quadrantWeight(leftBottom);
+  const rightDenominator = quadrantWeight(rightBottom);
 
   // Cross-multiply to compare fractions exactly, then scale the tilt by their difference.
   const numerator = rightTop * leftDenominator - leftTop * rightDenominator;
   const difference = numerator / (leftDenominator * rightDenominator);
   const comparison = numerator === 0 ? '=' : numerator > 0 ? '<' : '>';
-  const tilt = Math.max(-8, Math.min(8, difference * 2));
+  // Tall stacks need a smaller angle on narrow screens to stay in view.
+  const clearance = Math.max(0, (document.documentElement.clientWidth - beam.offsetWidth) / 2 - 2);
+  const maxTilt = Math.min(8, Math.asin(Math.min(1, 2 * clearance / beam.offsetHeight)) * 180 / Math.PI);
+  const tilt = Math.max(-maxTilt, Math.min(maxTilt, difference * 2));
   beam.style.setProperty('--tilt', `${tilt}deg`);
   const leftWeight = formatWeight(leftTop, leftDenominator);
   const rightWeight = formatWeight(rightTop, rightDenominator);
@@ -88,12 +98,28 @@ function finishDrag(event) {
 
   const target = document.elementFromPoint(event.clientX, event.clientY);
   const destination = target?.closest('.plate, #tray');
-  if (destination && destination !== marble.closest('.plate, #tray')) {
-    destination.querySelector('.marbles').append(marble);
-    updateScale();
+  if (!destination) return;
+
+  const sourceStack = marble.closest('.stack');
+  if (destination === tray) {
+    tray.querySelector('.marbles').append(marble);
+  } else {
+    let stack = target.closest('.stack');
+    if (stack && stack === sourceStack) return;
+    if (!stack) {
+      stack = document.createElement('div');
+      stack.className = 'stack';
+      destination.querySelector('.marbles').append(stack);
+    }
+    stack.append(marble);
   }
+  // An empty stack must not become a zero factor in its former quadrant.
+  if (sourceStack && !sourceStack.children.length) sourceStack.remove();
+  updateScale();
 }
 
 document.addEventListener('pointerup', finishDrag);
 document.addEventListener('pointercancel', finishDrag);
 document.addEventListener('lostpointercapture', finishDrag);
+
+window.addEventListener('resize', updateScale);
