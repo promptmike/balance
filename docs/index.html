@@ -9,25 +9,25 @@
 <body>
   <main>
     <h1>Balance</h1>
-    <p>Drag marbles above or below either plate. Drop onto a stack to add to its sum, or into empty space to start a separate stack. Each quadrant multiplies its stacks. Each side divides the top by the bottom. An empty top counts as 0; an empty bottom counts as 1. Drag a marble back to the tray to remove it. Drag the padded background around a stack to move the whole stack to another quadrant.</p>
+    <p>Each stack reads left to right. Scroll within a quadrant if a long stack extends beyond it. Drag marbles above or below either plate. Drop onto a stack to add to its sum, or into empty space to start a separate stack. Each quadrant multiplies its stacks. Each side divides the top by the bottom. An empty top counts as 0; an empty bottom counts as 1. Drag a marble back to the tray to remove it. Drag the padded background around a stack to move the whole stack to another quadrant.</p>
     <div class="scale">
       <div class="stand" aria-hidden="true"></div>
       <div class="beam">
         <section class="plate numerator" id="left">
           <h2>Left top</h2>
-          <div class="marbles"></div>
+          <div class="marbles" tabindex="0" role="group" aria-label="Left top stacks"></div>
         </section>
         <section class="plate numerator" id="right">
           <h2>Right top</h2>
-          <div class="marbles"></div>
+          <div class="marbles" tabindex="0" role="group" aria-label="Right top stacks"></div>
         </section>
         <section class="plate denominator" id="left-bottom">
           <h2>Left bottom</h2>
-          <div class="marbles"></div>
+          <div class="marbles" tabindex="0" role="group" aria-label="Left bottom stacks"></div>
         </section>
         <section class="plate denominator" id="right-bottom">
           <h2>Right bottom</h2>
-          <div class="marbles"></div>
+          <div class="marbles" tabindex="0" role="group" aria-label="Right bottom stacks"></div>
         </section>
       </div>
     </div>
@@ -40,3 +40,4 @@
   <script src="./scripts.js"></script>
 </body>
 </html>
+

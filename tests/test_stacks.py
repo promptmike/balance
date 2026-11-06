@@ -1,4 +1,4 @@
-"""Browser regression checks. See README.md for setup and execution."""
+"""Run with Playwright installed and BALANCE_URL pointing to the served docs site."""
 import os
 import unittest
 from playwright.sync_api import sync_playwright
@@ -87,7 +87,7 @@ class StackTests(unittest.TestCase):
         self.add(3, 'right')
         stack = self.page.locator('#left .stack')
         stack.drag_to(self.page.locator('#right .stack'),
-                      source_position={'x': 24, 'y': 8})
+                      source_position={'x': 40, 'y': 16})
         self.result('Left 0 < 9 Right')
         self.assertEqual(self.page.locator('#right .stack').count(), 2)
         self.assertEqual(self.page.locator('#left .stack').count(), 0)
@@ -97,7 +97,7 @@ class StackTests(unittest.TestCase):
         self.result('Left 0 < 9 Right')
         self.page.locator('#right .stack').last.drag_to(
             self.page.locator('#left-bottom h2'),
-            source_position={'x': 24, 'y': 8})
+            source_position={'x': 40, 'y': 16})
         self.result('Left 0/3 < 3 Right')
 
     def test_stack_invalid_drop_and_cancel(self):
@@ -106,18 +106,55 @@ class StackTests(unittest.TestCase):
         stack = self.page.locator('#left .stack')
         for target in ('h1', '#tray h2', '#left h2'):
             stack.drag_to(self.page.locator(target),
-                          source_position={'x': 24, 'y': 8})
+                          source_position={'x': 40, 'y': 16})
             self.result('Left 3 > 0 Right')
             self.assertEqual(stack.locator('.marble').count(), 2)
         box = stack.bounding_box()
-        self.page.mouse.move(box['x'] + 24, box['y'] + 8)
+        self.page.mouse.move(box['x'] + 40, box['y'] + 16)
         self.page.mouse.down()
         stack.dispatch_event('pointercancel', {'pointerId': 1})
         self.page.mouse.up()
         self.assertEqual(self.page.locator('.preview, .dragging').count(), 0)
 
+    def test_horizontal_sums_and_responsive_scale(self):
+        for weight in (1, 2, 3, 4):
+            self.add(weight, 'left', stack=weight != 1)
+        self.add(1, 'left')
+        for width in (320, 375, 768, 1280, 1920):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 1000})
+                geometry = self.page.evaluate("""() => {
+                  const beam = document.querySelector('.beam');
+                  const stacks = [...document.querySelectorAll('#left .stack')];
+                  const marbles = [...stacks[0].children];
+                  const area = document.querySelector('#left .marbles');
+                  return {
+                    beamWidth: beam.offsetWidth,
+                    sameRow: marbles.every(m => m.offsetTop === marbles[0].offsetTop),
+                    ordered: marbles.every((m, i) => !i || m.offsetLeft > marbles[i-1].offsetLeft),
+                    factorsHorizontal: stacks[0].offsetTop === stacks[1].offsetTop,
+                    scrollable: area.scrollWidth > area.clientWidth,
+                    pageWidth: document.documentElement.scrollWidth,
+                    tilt: Math.abs(parseFloat(beam.style.getPropertyValue('--tilt'))),
+                    padding: parseFloat(getComputedStyle(beam.parentElement).paddingTop)
+                  };
+                }""")
+                self.assertTrue(geometry['sameRow'])
+                self.assertTrue(geometry['ordered'])
+                self.assertGreater(geometry['beamWidth'], width - 50)
+                self.assertLessEqual(geometry['pageWidth'], width)
+                if width >= 1280:
+                    self.assertTrue(geometry['factorsHorizontal'])
+                if width == 320:
+                    self.assertTrue(geometry['scrollable'])
+                # Wide beams must not rotate into instructions or the result below.
+                import math
+                self.assertLessEqual(geometry['beamWidth'] / 2 * math.sin(
+                    math.radians(geometry['tilt'])), geometry['padding'])
+                self.result('Left 10 > 0 Right')
+
     def test_extreme_layouts(self):
-        for width in (320, 375, 1280):
+        for width in (320, 375, 768, 1280, 1920):
             for quadrant in ('left', 'left-bottom'):
                 for combined in (True, False):
                     with self.subTest(width=width, quadrant=quadrant, combined=combined):
@@ -155,3 +192,4 @@ class StackTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

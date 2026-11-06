@@ -52,7 +52,9 @@ function updateScale() {
   const comparison = numerator === 0 ? '=' : numerator > 0 ? '<' : '>';
   // Tall stacks need a smaller angle on narrow screens to stay in view.
   const clearance = Math.max(0, (document.documentElement.clientWidth - beam.offsetWidth) / 2 - 2);
-  const maxTilt = Math.min(8, Math.asin(Math.min(1, 2 * clearance / beam.offsetHeight)) * 180 / Math.PI);
+  const verticalClearance = parseFloat(getComputedStyle(beam.parentElement).paddingTop) - 2;
+  const verticalLimit = Math.asin(Math.min(1, 2 * verticalClearance / beam.offsetWidth)) * 180 / Math.PI;
+  const maxTilt = Math.min(8, verticalLimit, Math.asin(Math.min(1, 2 * clearance / beam.offsetHeight)) * 180 / Math.PI);
   const tilt = Math.max(-maxTilt, Math.min(maxTilt, difference * 2));
   beam.style.setProperty('--tilt', `${tilt}deg`);
   const leftWeight = formatWeight(leftTop, leftDenominator);
@@ -133,3 +135,4 @@ document.addEventListener('pointercancel', finishDrag);
 document.addEventListener('lostpointercapture', finishDrag);
 
 window.addEventListener('resize', updateScale);
+
