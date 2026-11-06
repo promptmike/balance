@@ -33,7 +33,9 @@ const MultiplicationView = (() => {
     const shape = layout(marbles.length, rows, layers);
     const { rowStep, depthStep, depth, rise, rowWidth, width, height } = shape;
     stack.querySelector('.stack-visual')?.remove();
-    stack.querySelector('.stack-caption')?.remove();
+    stack.querySelector('.term-product')?.remove();
+    stack.querySelector('.term-sum')?.remove();
+    stack.querySelector('.sum-brace')?.remove();
     stack.querySelector('.force-arrow')?.remove();
     stack.style.setProperty('--row-width', `${rowWidth}px`);
     stack.style.setProperty('--rise', `${rise}px`);
@@ -41,6 +43,7 @@ const MultiplicationView = (() => {
     stack.dataset.rows = rows;
     stack.dataset.layers = layers;
     stack.dataset.visualTotal = total;
+    stack.setAttribute('role', 'group');
     stack.setAttribute('aria-label', `Term ${factors.length}: real sum ${factors.at(-1)}; ${rows} rows, ${layers} layers; visual total ${total}. Ghost marbles have no weight.`);
 
     const svg = svgElement('svg', {
@@ -91,10 +94,22 @@ const MultiplicationView = (() => {
     svg.append(ghosts);
     stack.prepend(svg);
     const caption = document.createElement('span');
-    caption.className = 'stack-caption';
-    caption.textContent = factors.length === 1 ? `Sum ${total}` : `${factors.join(' × ')} = ${total}`;
+    caption.className = 'term-product';
+    caption.textContent = factors.length === 1 ? String(total) : `${factors.join(' × ')} = ${total}`;
     caption.title = `${rows} rows · ${layers} layers. Translucent copies show multiplication; only solid marbles have weight.`;
     stack.append(caption);
+    const brace = svgElement('svg', { class: 'sum-brace', viewBox: '0 0 100 16',
+      width: rowWidth, height: 16, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
+    brace.append(svgElement('path', {
+      d: 'M1 1 C1 8 4 8 10 8 L40 8 C47 8 50 10 50 15 C50 10 53 8 60 8 L90 8 C96 8 99 8 99 1',
+      'vector-effect': 'non-scaling-stroke',
+    }));
+    const sum = document.createElement('span');
+    sum.className = 'term-sum';
+    const weights = marbles.map(marble => Number(marble.dataset.weight));
+    sum.textContent = weights.length === 1 ? String(weights[0]) :
+      `${weights.join(' + ')} = ${factors.at(-1)}`;
+    stack.append(brace, sum);
     const arrow = svgElement('svg', { class: 'force-arrow', viewBox: '0 0 24 24',
       'data-direction': balloon ? 'up' : 'down', 'aria-hidden': 'true' });
     arrow.append(svgElement('path', { d: balloon ? 'M12 22 V3 M5 10 L12 3 L19 10' :

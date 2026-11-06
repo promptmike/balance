@@ -317,6 +317,41 @@ class StackTests(unittest.TestCase):
         self.result('Left 3 > 0 Right')
         self.assertEqual(self.page.locator('.marble').count(), 8)
 
+    def test_products_above_and_real_sums_below(self):
+        for quadrant in ('left', 'left-bottom'):
+            with self.subTest(quadrant=quadrant):
+                self.page.reload()
+                self.add(1, quadrant)
+                self.add(2, quadrant, stack=True)
+                self.add(3, quadrant)
+                self.add(4, quadrant)
+                self.assertEqual(self.page.locator(f'#{quadrant} .term-product').all_text_contents(),
+                                 ['3', '3 × 3 = 9', '3 × 3 × 4 = 36'])
+                self.assertEqual(self.page.locator(f'#{quadrant} .term-sum').all_text_contents(),
+                                 ['1 + 2 = 3', '3', '4'])
+                geometry = self.page.locator(f'#{quadrant} .stack').evaluate_all("""stacks => stacks.map(s => {
+                    const product = s.querySelector('.term-product');
+                    const visual = s.querySelector('.stack-visual');
+                    const real = s.querySelector('.marble');
+                    const brace = s.querySelector('.sum-brace');
+                    const sum = s.querySelector('.term-sum');
+                    const arrow = s.querySelector('.force-arrow');
+                    const top = e => parseFloat(getComputedStyle(e).top);
+                    return { productAbove: top(product) + product.offsetHeight < top(visual),
+                      braceBelow: top(brace) > real.offsetTop + real.offsetHeight,
+                      sumBelow: top(sum) >= top(brace) + 16,
+                      braceWidth: Number(brace.getAttribute('width')),
+                      realWidth: parseFloat(s.style.getPropertyValue('--row-width')),
+                      arrowOutside: s.classList.contains('balloon-stack') ?
+                        top(arrow) + 24 < top(visual) : top(arrow) > top(sum) + sum.offsetHeight };
+                })""")
+                for item in geometry:
+                    self.assertTrue(item['productAbove'])
+                    self.assertTrue(item['braceBelow'])
+                    self.assertTrue(item['sumBelow'])
+                    self.assertEqual(item['braceWidth'], item['realWidth'])
+                    self.assertTrue(item['arrowOutside'])
+
     def test_extreme_layouts(self):
         for width in (320, 375, 768, 1280, 1920):
             for quadrant in ('left', 'left-bottom'):
