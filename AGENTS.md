@@ -16,6 +16,7 @@ Variables are represented by coloured marbles. At the start of each level they a
 
 - Static Website
 - One page per game level
+- Maintain separation of concerns
 
 ### Languages
 
