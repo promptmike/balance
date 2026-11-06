@@ -10,7 +10,6 @@ body {
 }
 
 main {
-  max-width: 42rem;
   margin: auto;
   padding: 1.25rem;
 }
@@ -73,7 +72,7 @@ h2 {
   min-height: 5.7rem;
 }
 
-/* Each column is one sum. Wrapping keeps separate sums apart even on phones. */
+/* Each horizontal group is one sum; separate sums wrap as whole groups. */
 .plate .marbles {
   display: flex;
   flex-wrap: wrap;
@@ -81,12 +80,13 @@ h2 {
   align-content: flex-end;
   gap: 0.75rem;
   padding: 0.5rem 0.25rem 2.75rem;
+  overflow-x: auto;
 }
 
 .stack {
   display: flex;
-  flex-direction: column;
-  flex: 0 0 4.25rem;
+  flex-direction: row;
+  flex: 0 0 auto;
   padding: 1rem 0.75rem;
   cursor: grab;
   touch-action: none;
@@ -95,8 +95,13 @@ h2 {
   background: #e5eaeb;
 }
 
+.stack .marble {
+  flex: 0 0 2.75rem;
+  width: 2.75rem;
+}
+
 .stack .marble + .marble {
-  margin-top: -0.5rem;
+  margin-left: -0.5rem;
 }
 
 .marble {
@@ -129,4 +134,15 @@ h2 {
   text-align: center;
   margin: 0.5rem 0;
   font-size: 1.2rem;
+}
+
+
+/* Keep instructions readable while the scale uses the full viewport width. */
+main > p {
+  max-width: 70ch;
+}
+
+.plate .marbles:focus-visible {
+  outline: 2px solid #1658a1;
+  outline-offset: -2px;
 }
