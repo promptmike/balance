@@ -86,8 +86,11 @@ h2 {
 .stack {
   display: flex;
   flex-direction: column;
-  flex: 0 0 2.75rem;
-  padding: 0.25rem;
+  flex: 0 0 4.25rem;
+  padding: 1rem 0.75rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   border-radius: 1.5rem;
   background: #e5eaeb;
 }
@@ -109,11 +112,11 @@ h2 {
   user-select: none;
 }
 
-.marble.dragging {
+.dragging {
   opacity: 0.25;
 }
 
-.marble.preview {
+.preview {
   position: fixed;
   z-index: 1;
   translate: -50% -50%;
