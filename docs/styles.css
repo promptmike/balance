@@ -1,0 +1,99 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f6f3eb;
+  color: #202d33;
+  font: 1rem/1.5 system-ui, sans-serif;
+}
+
+main {
+  max-width: 42rem;
+  margin: auto;
+  padding: 1.25rem;
+}
+
+h1 {
+  margin: 0;
+}
+
+.scale {
+  position: relative;
+  padding: 1.75rem 0 3.25rem;
+}
+
+.stand {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  translate: -50%;
+  width: 4.5rem;
+  height: 4rem;
+  background: #43535a;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.beam {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  border-bottom: 0.45rem solid #43535a;
+  border-radius: 0.3rem;
+  rotate: var(--tilt, 0deg);
+  transform-origin: center bottom;
+}
+
+.plate, #tray {
+  background: #fff;
+  border: 1px solid #aab4b5;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.marbles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 2.75rem));
+  align-content: end;
+  gap: 0.2rem;
+  min-height: 5.7rem;
+}
+
+.marble {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 25%, #ffffff55, transparent 45%), var(--colour);
+  color: white;
+  font-weight: bold;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.marble.dragging {
+  opacity: 0.25;
+}
+
+.marble.preview {
+  position: fixed;
+  z-index: 1;
+  translate: -50% -50%;
+  pointer-events: none;
+  opacity: 1;
+}
+
+#result {
+  display: block;
+  text-align: center;
+  margin: 0.5rem 0;
+  font-size: 1.2rem;
+}
