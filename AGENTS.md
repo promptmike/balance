@@ -47,5 +47,6 @@ GitHub Pages
 
 - Never modify the default branch directly.
 - Never modify `README.md`, `AGENTS.md` or `LICENSE` files.
+- Do not change the specified acceptance criteria.
 - Do not merge pull requests.
 - Leave final review and merge decisions to the human.
