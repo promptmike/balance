@@ -184,3 +184,17 @@ main > p {
   text-align: center;
   color: #8a2633;
 }
+
+/* Insertion cues do not change the layout while a pointer is captured. */
+.stack.drop-before::before, .stack.drop-after::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #1658a1;
+  border-radius: 2px;
+  pointer-events: none;
+}
+.stack.drop-before::before { left: -6px; }
+.stack.drop-after::after { right: -6px; }

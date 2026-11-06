@@ -86,7 +86,7 @@ class StackTests(unittest.TestCase):
         self.add(2, 'left', stack=True)
         self.add(3, 'right')
         stack = self.page.locator('#left .stack')
-        stack.drag_to(self.page.locator('#right .stack'),
+        stack.drag_to(self.page.locator('#right h2'),
                       source_position={'x': 40, 'y': 16})
         self.result('Left 0 < 9 Right')
         self.assertEqual(self.page.locator('#right .stack').count(), 2)
@@ -104,7 +104,7 @@ class StackTests(unittest.TestCase):
         self.add(1, 'left')
         self.add(2, 'left', stack=True)
         stack = self.page.locator('#left .stack')
-        for target in ('h1', '#tray h2', '#left h2'):
+        for target in ('h1', '#left h2'):
             stack.drag_to(self.page.locator(target),
                           source_position={'x': 40, 'y': 16})
             self.result('Left 3 > 0 Right')
@@ -268,6 +268,33 @@ class StackTests(unittest.TestCase):
         self.assertLess(data[3]['depthStep'], data[1]['depthStep'])
         self.assertEqual(self.page.locator('.marble').count(), 8)
         self.result('Left 4 > 0 Right')
+
+    def test_reorder_terms_and_disband_stack(self):
+        for weight in (2, 3, 4):
+            self.add(weight, 'left')
+        self.page.locator('#left .stack').last.drag_to(
+            self.page.locator('#left .stack').first,
+            source_position={'x': 40, 'y': 16}, target_position={'x': 8, 'y': 40})
+        self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['4', '2', '3'])
+        self.result('Left 24 > 0 Right')
+        self.assertEqual(self.page.locator('#left .stack').last.get_attribute('data-rows'), '4')
+        self.assertEqual(self.page.locator('#left .stack').last.get_attribute('data-layers'), '2')
+        self.page.locator('#left .stack').first.drag_to(
+            self.page.locator('#tray h2'), source_position={'x': 40, 'y': 16})
+        self.result('Left 6 > 0 Right')
+        self.assertEqual(self.page.locator('#tray .stack').count(), 0)
+        self.assertEqual(self.page.locator('#tray .marble').count(), 6)
+        self.assertEqual(self.page.locator('.marble').count(), 8)
+        # A singleton dragged into empty space becomes the final term, not a fourth factor.
+        self.move('#left .stack:first-child .marble', '#left h2')
+        self.assertEqual(self.page.locator('#left .marble').all_text_contents(), ['3', '2'])
+        self.result('Left 6 > 0 Right')
+        self.add(1, 'left', stack=True)
+        self.page.locator('#left .stack').last.drag_to(
+            self.page.locator('#tray h2'), source_position={'x': 40, 'y': 16})
+        self.result('Left 3 > 0 Right')
+        self.assertEqual(self.page.locator('#tray .marble').count(), 7)
+        self.assertEqual(self.page.locator('#tray .stack-visual').count(), 0)
 
     def test_extreme_layouts(self):
         for width in (320, 375, 768, 1280, 1920):
